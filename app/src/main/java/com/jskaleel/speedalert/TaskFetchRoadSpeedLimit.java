@@ -27,6 +27,7 @@ public class TaskFetchRoadSpeedLimit extends AsyncTask<Void, Void, String> {
     private final static String BASEURL = "http://overpass-api.de/api/xapi?*[bbox=%s,%s,%s,%s][maxspeed=*]";
 
     public TaskFetchRoadSpeedLimit(UpdateMaxSpeed listener, LatLng southwest, LatLng northeast) {
+        this.listener = listener;
         this.southwest = southwest;
         this.northeast = northeast;
     }
