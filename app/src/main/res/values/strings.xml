@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">SpeedAlert</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="gps_alert_message">Your GPS seems to be disabled, do you want to enable it?</string>
+    <string name="settings">Settings</string>
+    <string name="denied_never_ask_title">Unable to get %s </string>
+    <string name="denied_never_ask_msg">You have denied the permission for getting %s access..
+        Please go to app settings and allow permission</string>
+    <string name="speed_reached_alert">You have reached maximum speed of this zone&#8230;</string>
+</resources>
