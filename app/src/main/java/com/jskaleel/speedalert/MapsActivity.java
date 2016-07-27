@@ -155,7 +155,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private void checkSpeedLimit(LatLng southwest, LatLng northeast) {
         if (!isWebServiceRunnig) {
             isWebServiceRunnig = true;
-            new TaskFetchRoadSpeedLimit(MapsActivity.this, southwest, northeast).execute();
+            if (DeviceUtils.isInternetConnected(MapsActivity.this)) {
+                new TaskFetchRoadSpeedLimit(MapsActivity.this, southwest, northeast).execute();
+            }
         }
     }
 
