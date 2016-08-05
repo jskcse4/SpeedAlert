@@ -1,6 +1,5 @@
 package com.jskaleel.speedalert.utils;
 
-<<<<<<< HEAD
 import android.app.Activity;
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -12,14 +11,6 @@ import android.view.WindowManager;
 
 public class DeviceUtils {
     public static boolean isInternetConnected(Context context) {
-=======
-import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-
-public class DeviceUtils {
-        public static boolean isInternetConnected(Context context) {
->>>>>>> 1deac00f7470ba838e69a98e4ae3cc0830fdd7ed
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo info = cm.getActiveNetworkInfo();
 
@@ -31,7 +22,6 @@ public class DeviceUtils {
 
         return isConnected;
     }
-<<<<<<< HEAD
 
     public static void setStatusBarColor(Context context, int colorId) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -41,6 +31,4 @@ public class DeviceUtils {
             window.setStatusBarColor(ContextCompat.getColor(context, colorId));
         }
     }
-=======
->>>>>>> 1deac00f7470ba838e69a98e4ae3cc0830fdd7ed
 }

@@ -10,12 +10,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
-<<<<<<< HEAD
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
-=======
->>>>>>> 1deac00f7470ba838e69a98e4ae3cc0830fdd7ed
 
     <application
         android:name=".SpeedAlertApp"
@@ -50,10 +45,4 @@
             android:name="io.fabric.ApiKey"
             android:value="8b321845d8fa15df7c1b8ef77f45e893f4000526" />
     </application>
-
-<<<<<<< HEAD
-    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>
-=======
-</manifest>
->>>>>>> 1deac00f7470ba838e69a98e4ae3cc0830fdd7ed

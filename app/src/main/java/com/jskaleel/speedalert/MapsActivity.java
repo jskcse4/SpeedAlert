@@ -104,7 +104,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void initLocationClient() {
-        mCurrentLocationClient = new CurrentLocationClient(MapsActivity.this, CurrentLocationClient.SCOPE.LOCATION, this);
+        mCurrentLocationClient = new CurrentLocationClient(MapsActivity.this, this);
 
 
         myLocationListener = new MyLocationListener();

@@ -8,6 +8,7 @@ import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
@@ -20,23 +21,18 @@ public class CurrentLocationClient implements GoogleApiClient.ConnectionCallback
     static final String TAG = "CurrentLocationClient";
 
     private GoogleApiClient mClient;
-    private Location mCurrentLocation;
-    private Context mContext;
-    private SCOPE mScope;
     private OnLocationReceivedListener mOnLocationReceivedCallback;
 
-    public CurrentLocationClient(Context context, SCOPE scope, OnLocationReceivedListener listener) {
+    public CurrentLocationClient(Context context, OnLocationReceivedListener listener) {
         mOnLocationReceivedCallback = listener;
-        init(context, scope);
+        init(context);
     }
 
-    public CurrentLocationClient(Context context, SCOPE scope) {
-        init(context, scope);
+    public CurrentLocationClient(Context context) {
+        init(context);
     }
 
-    private void init(Context context, SCOPE scope) {
-        mScope = scope;
-        mContext = context;
+    private void init(Context context) {
         mClient = new GoogleApiClient.Builder(context)
                 .addApi(LocationServices.API)
                 .addConnectionCallbacks(this)
@@ -81,8 +77,6 @@ public class CurrentLocationClient implements GoogleApiClient.ConnectionCallback
     }
 
     private void onLocationReceived(Location location) {
-        mCurrentLocation = location;
-//        reset();
         if (mOnLocationReceivedCallback != null) {
             mOnLocationReceivedCallback.onLocationReceived(location);
         }
