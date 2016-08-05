@@ -1,32 +1,41 @@
 package com.jskaleel.speedalert;
 
-import android.Manifest;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.location.Criteria;
 import android.location.Location;
-import android.net.Uri;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.Vibrator;
-import android.provider.Settings;
 import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.TextView;
 
+import com.afollestad.assent.Assent;
+import com.afollestad.assent.AssentCallback;
+import com.afollestad.assent.PermissionResultSet;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.maps.android.SphericalUtil;
+import com.jskaleel.speedalert.maputils.MapStateListener;
+import com.jskaleel.speedalert.maputils.TouchableMapFragment;
 import com.jskaleel.speedalert.utils.AlertUtils;
 import com.jskaleel.speedalert.utils.CurrentLocationClient;
+import com.jskaleel.speedalert.utils.DeviceUtils;
 import com.jskaleel.speedalert.utils.GpsUtils;
+
+import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, CurrentLocationClient.OnLocationReceivedListener, UpdateMaxSpeed {
 
@@ -35,66 +44,139 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean showAlertDialog = true;
     private GoogleMap mMap;
     private CurrentLocationClient mCurrentLocationClient;
-    private static String[] PERMISSIONS = {Manifest.permission.ACCESS_FINE_LOCATION};
     private LatLng mCurrentLatLng;
-    private static final float ZOOM_LEVEL = 18.0f;
-    private Vibrator viberate;
-    private TextView txtMaxSpeed;
+    private static final float ZOOM_LEVEL = 14.0f;
+    private TextView txtMaxSpeed, txtCurrentSpeed;
+    private MyLocationListener myLocationListener;
+    private LocationManager locationManager;
+    private TouchableMapFragment mapFragment;
+    private boolean isMapTouched = false;
+
+    private ArrayList<LatLng> violatePoints;
+    private PolylineOptions polyLine;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Assent.setActivity(this, this);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (isFinishing())
+            Assent.setActivity(this, null);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
+        Assent.setActivity(this, this);
+        mapFragment = (TouchableMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
         init();
     }
 
     private void init() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                    && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                checkGPSPermission();
-            } else {
-                mCurrentLocationClient = new CurrentLocationClient(MapsActivity.this, CurrentLocationClient.SCOPE.LOCATION, this);
-            }
+        if (!Assent.isPermissionGranted(Assent.ACCESS_FINE_LOCATION)) {
+            Assent.requestPermissions(new AssentCallback() {
+                @Override
+                public void onPermissionResult(PermissionResultSet result) {
+                    if (result.isGranted(Assent.ACCESS_FINE_LOCATION)) {
+                        initLocationClient();
+                    }
+                }
+            }, 69, Assent.ACCESS_FINE_LOCATION);
         } else {
-            mCurrentLocationClient = new CurrentLocationClient(MapsActivity.this, CurrentLocationClient.SCOPE.LOCATION, this);
+            initLocationClient();
         }
 
         txtMaxSpeed = (TextView) findViewById(R.id.txt_max_speed);
-//        viberate = (Vibrator)getSystemService(Context.VIBRATOR_SERVICE);
+        txtCurrentSpeed = (TextView) findViewById(R.id.txt_current_speed);
+
+        violatePoints = new ArrayList<>();
+        polyLine = new PolylineOptions();
+        polyLine.width(15);
+        polyLine.clickable(false);
+        polyLine.color(Color.RED);
+    }
+
+    private void initLocationClient() {
+        mCurrentLocationClient = new CurrentLocationClient(MapsActivity.this, CurrentLocationClient.SCOPE.LOCATION, this);
+
+
+        myLocationListener = new MyLocationListener();
+        Criteria criteria = new Criteria();
+        criteria.setSpeedRequired(true);
+        criteria.setSpeedAccuracy(Criteria.ACCURACY_HIGH);
+
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        String bestProvider = locationManager.getBestProvider(criteria, true);
+        locationManager.requestLocationUpdates(bestProvider, 2000, 0, myLocationListener);
+
+        initMapService();
     }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        initMapService();
+        if (Assent.isPermissionGranted(Assent.ACCESS_FINE_LOCATION)) {
+            initMapService();
+        }
+
+        new MapStateListener(mMap, mapFragment, this) {
+
+            @Override
+            public void onMapTouched() {
+                Log.d("MapsActivity", "onMapTouched");
+                isMapTouched = true;
+            }
+
+            @Override
+            public void onMapReleased() {
+                Log.d("MapsActivity", "onMapReleased");
+            }
+
+            @Override
+            public void onMapUnsettled() {
+                Log.d("MapsActivity", "onMapUnsettled");
+            }
+
+            @Override
+            public void onMapSettled() {
+                Log.d("MapsActivity", "onMapSettled");
+                /*if (mMap != null) {
+                    isMapTouched = false;
+                }*/
+            }
+        };
     }
 
     private void initMapService() {
         if (mMap != null) {
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                        && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                mMap.setMyLocationEnabled(true);
+            } else {
+                if (Assent.isPermissionGranted(Assent.ACCESS_FINE_LOCATION)) {
                     mMap.setMyLocationEnabled(true);
                 }
-            } else {
-                mMap.setMyLocationEnabled(true);
             }
+
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
             mMap.getUiSettings().setCompassEnabled(true);
-            mMap.getUiSettings().setMapToolbarEnabled(false);
 
             mMap.setOnMyLocationButtonClickListener(new GoogleMap.OnMyLocationButtonClickListener() {
                 @Override
                 public boolean onMyLocationButtonClick() {
                     if (!GpsUtils.isGpsEnabled(MapsActivity.this)) {
                         GpsUtils.showGpsAlert(MapsActivity.this);
+                    } else {
+                        isMapTouched = false;
+                        animateToCurrentLocation();
                     }
                     return false;
                 }
@@ -108,118 +190,114 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             return;
         }
 
+        Vibrator viberate = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        viberate.vibrate(300);
+
         double currentLatitude = location.getLatitude();
         double currentLongitude = location.getLongitude();
 
         mCurrentLatLng = new LatLng(currentLatitude, currentLongitude);
-        moveToCurrentLocation();
 
-        double car_speed = Math.round(location.getSpeed()) * 3.6;
+        animateToCurrentLocation();
+
+        double currentSpeed = Math.round(location.getSpeed()) * 3.6f;
+        txtCurrentSpeed.setText(String.format(getString(R.string.your_speed), String.valueOf(currentSpeed)));
+        if(currentSpeed > 0.0) {
+            polyLine.add(mCurrentLatLng);
+            if (mMap != null) {
+                mMap.addPolyline(polyLine);
+            }
+        }
 
         double radiusDegrees = 30.0;
         LatLng center = new LatLng(currentLatitude, currentLongitude);
 
         LatLng southwest = SphericalUtil.computeOffset(center, radiusDegrees * Math.sqrt(2.0), 225);
         LatLng northeast = SphericalUtil.computeOffset(center, radiusDegrees * Math.sqrt(2.0), 45);
-        Log.e("ss ","values " +maxSpeed +"---> " +car_speed);
+        Log.e("ss ", "values " + maxSpeed + "---> " + currentSpeed);
+
         if (maxSpeed == 0) {
             checkSpeedLimit(southwest, northeast);
-        } else if (car_speed >= maxSpeed) {
-            if(showAlertDialog){
+        } else if (currentSpeed >= maxSpeed) {
+            if (showAlertDialog) {
                 showAlertDialog = false;
+                if (!violatePoints.contains(center)) {
+                    violatePoints.add(center);
+                    mMap.addMarker(new MarkerOptions().position(center).icon(BitmapDescriptorFactory.defaultMarker()));
+                }
 
-                if(MapsActivity.this.isFinishing()){
+                if (MapsActivity.this.isFinishing()) {
                     return;
                 }
 
-                AlertUtils.showAlert(MapsActivity.this, getString(R.string.speed_reached_alert), new DialogInterface.OnClickListener(){
+                AlertUtils.showAlert(MapsActivity.this, getString(R.string.speed_reached_alert), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         showAlertDialog = true;
                     }
                 });
-            }else{
-//                viberate.vibrate(200);
             }
             checkSpeedLimit(southwest, northeast);
         }
     }
 
-    private void moveToCurrentLocation() {
-        if (mCurrentLatLng != null && mMap != null) {
-            CameraUpdate update = CameraUpdateFactory.newLatLngZoom(mCurrentLatLng, ZOOM_LEVEL);
-            mMap.animateCamera(update);
+    private void animateToCurrentLocation() {
+        if (!isMapTouched) {
+            if (mCurrentLatLng != null && mMap != null) {
+                CameraUpdate update = CameraUpdateFactory.newLatLngZoom(mCurrentLatLng, ZOOM_LEVEL);
+                mMap.animateCamera(update);
+            }
         }
     }
 
     private void checkSpeedLimit(LatLng southwest, LatLng northeast) {
         if (!isWebServiceRunnig) {
             isWebServiceRunnig = true;
-            new TaskFetchRoadSpeedLimit(MapsActivity.this, southwest, northeast).execute();
+            if (DeviceUtils.isInternetConnected(MapsActivity.this)) {
+                new TaskFetchRoadSpeedLimit(MapsActivity.this, southwest, northeast).execute();
+            }
         }
     }
 
     @Override
     protected void onDestroy() {
         mCurrentLocationClient.reset();
+        locationManager.removeUpdates(myLocationListener);
         super.onDestroy();
-    }
-
-    private void checkGPSPermission() {
-        for (String PERMISSION : PERMISSIONS) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                if ((checkSelfPermission(PERMISSION)) != 0) {
-                    if (PERMISSION.equalsIgnoreCase(android.Manifest.permission.ACCESS_FINE_LOCATION)) {
-                        requestPermissions(PERMISSIONS, 1);
-                    }
-                }
-            }
-        }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == 1) {
-            if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
-                    promptSettings("Location");
-                }
-            } else {
-                mCurrentLocationClient = new CurrentLocationClient(MapsActivity.this, CurrentLocationClient.SCOPE.LOCATION, this);
-                if (mMap != null) {
-                    mMap.setMyLocationEnabled(true);
-                }
-            }
-        }
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        Assent.handleResult(permissions, grantResults);
     }
-
-    private void promptSettings(String type) {
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-        builder.setTitle(String.format(getString(R.string.denied_never_ask_title), type));
-        builder.setMessage(String.format(getString(R.string.denied_never_ask_msg), type));
-        builder.setPositiveButton("go to Settings", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                goToSettings();
-            }
-        });
-        builder.setNegativeButton("Cancel", null);
-        builder.setCancelable(false);
-        builder.show();
-    }
-
-    private void goToSettings() {
-        Intent myAppSettings = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + this.getPackageName()));
-        myAppSettings.addCategory(Intent.CATEGORY_DEFAULT);
-        myAppSettings.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        startActivity(myAppSettings);
-    }
-
 
     @Override
     public void updateMaxSpeed(double maxSpeed) {
         this.maxSpeed = maxSpeed;
-        txtMaxSpeed.setText("Max. Speed : " + maxSpeed + " kph");
+        txtMaxSpeed.setText(String.format(getString(R.string.max_speed), String.valueOf(maxSpeed)));
+    }
+
+    class MyLocationListener implements LocationListener {
+
+        @Override
+        public void onLocationChanged(Location location) {
+            onLocationReceived(location);
+
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
+        }
     }
 }

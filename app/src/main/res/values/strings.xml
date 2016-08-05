@@ -7,4 +7,6 @@
     <string name="denied_never_ask_msg">You have denied the permission for getting %s access..
         Please go to app settings and allow permission</string>
     <string name="speed_reached_alert">You have reached maximum speed of this zone&#8230;</string>
+    <string name="your_speed">Your Speed : %s kph</string>
+    <string name="max_speed">Max Speed : %s kph</string>
 </resources>

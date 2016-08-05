@@ -3,6 +3,7 @@ package com.jskaleel.speedalert.utils;
 import android.content.Context;
 import android.location.Location;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -54,7 +55,10 @@ public class CurrentLocationClient implements GoogleApiClient.ConnectionCallback
         } else {
             LocationRequest request = new LocationRequest();
             request.setNumUpdates(1);
-            request.setPriority(LocationRequest.PRIORITY_LOW_POWER);
+            request.setSmallestDisplacement(0f);
+            request.setInterval(2000);
+            request.setFastestInterval(1000);
+            request.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
             LocationServices.FusedLocationApi.requestLocationUpdates(mClient, request, this);
         }
     }
@@ -65,7 +69,7 @@ public class CurrentLocationClient implements GoogleApiClient.ConnectionCallback
     }
 
     @Override
-    public void onConnectionFailed(ConnectionResult result) {
+    public void onConnectionFailed(@NonNull ConnectionResult result) {
         Log.e(TAG, "Connection Failed" + result.toString());
     }
 
@@ -78,7 +82,7 @@ public class CurrentLocationClient implements GoogleApiClient.ConnectionCallback
 
     private void onLocationReceived(Location location) {
         mCurrentLocation = location;
-        reset();
+//        reset();
         if (mOnLocationReceivedCallback != null) {
             mOnLocationReceivedCallback.onLocationReceived(location);
         }
@@ -93,7 +97,7 @@ public class CurrentLocationClient implements GoogleApiClient.ConnectionCallback
     }
 
     public enum SCOPE {
-        LOCATION, LOCATION_AND_ADDRESS
+        LOCATION
     }
 
     public interface OnLocationReceivedListener {

@@ -27,6 +27,7 @@ public class TaskFetchRoadSpeedLimit extends AsyncTask<Void, Void, String> {
     private final static String BASEURL = "http://overpass-api.de/api/xapi?*[bbox=%s,%s,%s,%s][maxspeed=*]";
 
     public TaskFetchRoadSpeedLimit(UpdateMaxSpeed listener, LatLng southwest, LatLng northeast) {
+        this.listener = listener;
         this.southwest = southwest;
         this.northeast = northeast;
     }
@@ -35,12 +36,10 @@ public class TaskFetchRoadSpeedLimit extends AsyncTask<Void, Void, String> {
     protected void onPreExecute() {
         super.onPreExecute();
         this.boundUrl = String.format(BASEURL, southwest.longitude, southwest.latitude, northeast.longitude, northeast.latitude);
-        Log.d("BoundURL", "URL--->" + boundUrl);
     }
 
     @Override
     protected String doInBackground(Void... params) {
-        Log.d("BoundURL", "do in background--->");
         InputStream is = null;
 
         try {
@@ -72,14 +71,11 @@ public class TaskFetchRoadSpeedLimit extends AsyncTask<Void, Void, String> {
     @Override
     protected void onPostExecute(String response) {
         super.onPostExecute(response);
-        Log.d("BoundURL", "on Post Execute ---> 1");
 
         if (!TextUtils.isEmpty(response)) {
-            Log.d("BoundURL", "on Post Execute ---> 2"+response);
 
             JSONObject jsonObj = null;
             try {
-                Log.d("BoundURL", "on Post Execute ---> 3");
                 jsonObj = XML.toJSONObject(response);
                 if(jsonObj.toString() != null) {
                     JSONObject osmObject = jsonObj.optJSONObject("osm");
@@ -109,7 +105,6 @@ public class TaskFetchRoadSpeedLimit extends AsyncTask<Void, Void, String> {
                     }
                 }
             } catch (JSONException e) {
-                Log.d("BoundURL", "JSON Exception --->");
                 e.printStackTrace();
             }
         }
